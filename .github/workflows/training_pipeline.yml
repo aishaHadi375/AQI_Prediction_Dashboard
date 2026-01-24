@@ -27,7 +27,7 @@ jobs:
           SAVE_LOCAL: 'false'
         run: |
           echo "Starting Daily Model Training..."
-          python src/train_model.py
+          python models/train_model.py
           echo "✅ Model Training Completed Successfully!"
 
         
