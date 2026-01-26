@@ -16,8 +16,13 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install hopsworks pandas numpy requests python-dotenv scikit-learn
+          pip install \
+            hopsworks \
+            pandas \
+            numpy \
+            requests \
+            python-dotenv \
+            scikit-learn
       - name: Run Feature Pipeline
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
