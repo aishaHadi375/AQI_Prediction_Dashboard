@@ -1,34 +1,95 @@
-name: Daily Feature Pipeline
+name: Feature Pipeline - Hourly Data Ingestion
 'on':
   schedule:
-    - cron: 55 12 * * *
+    - cron: 0 * * * *
   workflow_dispatch: null
 jobs:
   run-feature-pipeline:
+    name: Fetch & Process AQI Data
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
+      - name: 🐍 Set up Python 3.10
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Install Dependencies
+          cache: pip
+      - name: 📦 Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install \
-            hopsworks \
-            pandas \
-            numpy \
-            requests \
-            python-dotenv \
-            scikit-learn
-      - name: Run Feature Pipeline
+          pip install pandas numpy requests python-dotenv hopsworks hsfs
+      - name: 🔑 Configure Environment
+        run: |
+          echo "HOPSWORKS_API_KEY=${{ secrets.HOPSWORKS_API_KEY }}" >> .env
+          echo "SAVE_LOCAL=False" >> .env
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
-          SAVE_LOCAL: 'false'
+      - name: 🌐 Fetch Latest AQI & Weather Data
         run: |
-          echo "Starting Daily Feature Pipeline"
-          python src/run_feature_pipeline.py
+          python src/fetch_data.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+      - name: ⚙️ Process Raw Data
+        run: |
+          python src/process_data.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+      - name: 🧹 Clean Data
+        run: |
+          python src/clean_data.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+      - name: 🧠 Engineer Features
+        run: |
+          python src/process_features.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+      - name: 📤 Upload to Hopsworks Feature Store
+        run: |
+          python src/feature_store.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+      - name: ✅ Verify Upload
+        run: |
+          python -c "
+          import hopsworks
+          import os
+          from dotenv import load_dotenv
+
+          load_dotenv()
+          api_key = os.getenv('HOPSWORKS_API_KEY')
+
+          project = hopsworks.login(api_key_value=api_key)
+          fs = project.get_feature_store()
+          fg = fs.get_feature_group('aqi_features', version=2)
+          df = fg.read()
+
+          print(f'✅ Feature Store Status:')
+          print(f'   Total rows: {len(df)}')
+          print(f'   Latest data: {df[\"datetime_str\"].max()}')
+          print(f'   Features: {len(df.columns)}')
+          "
+      - name: 💬 Notify on Failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Feature Pipeline Failed - ' + new Date().toISOString(),
+              body: `
+              ## Feature Pipeline Execution Failed
+              
+              **Time:** ${new Date().toLocaleString()}
+              **Workflow:** ${context.workflow}
+              **Run ID:** ${context.runId}
+              
+              Please check the [workflow logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.
+              `,
+              labels: ['pipeline-failure', 'feature-pipeline', 'urgent']
+            })
+
 
           
