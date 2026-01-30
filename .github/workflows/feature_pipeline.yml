@@ -1,55 +1,82 @@
 name: Feature Pipeline - Hourly Data Ingestion
-'on':
+
+on:
   schedule:
-    - cron: 0 * * * *
-  workflow_dispatch: null
+    - cron: 0 * * * *   # runs every hour at 00 min
+  workflow_dispatch:
+
+permissions:
+  contents: read       # needed for checkout
+  issues: write         # needed to create issues
+
 jobs:
   run-feature-pipeline:
     name: Fetch & Process AQI Data
     runs-on: ubuntu-latest
+
     steps:
+      # 1️⃣ Checkout repo
       - name: 📥 Checkout Repository
         uses: actions/checkout@v3
+
+      # 2️⃣ Set up Python
       - name: 🐍 Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           cache: pip
+
+      # 3️⃣ Install dependencies
       - name: 📦 Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy requests python-dotenv hopsworks hsfs
+          # Install Hopsworks with Python extras (includes pyarrow)
+          pip install pandas numpy requests python-dotenv "hopsworks[python]" hsfs
+
+      # 4️⃣ Configure environment and secrets
       - name: 🔑 Configure Environment
         run: |
           echo "HOPSWORKS_API_KEY=${{ secrets.HOPSWORKS_API_KEY }}" >> .env
           echo "SAVE_LOCAL=False" >> .env
         env:
           HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+
+      # 5️⃣ Fetch latest AQI & weather data
       - name: 🌐 Fetch Latest AQI & Weather Data
-        run: |
-          python src/fetch_data.py
+        run: python src/fetch_data.py
         env:
           PYTHONPATH: ${{ github.workspace }}
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+
+      # 6️⃣ Process raw data
       - name: ⚙️ Process Raw Data
-        run: |
-          python src/process_data.py
+        run: python src/process_data.py
         env:
           PYTHONPATH: ${{ github.workspace }}
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+
+      # 7️⃣ Clean data
       - name: 🧹 Clean Data
-        run: |
-          python src/clean_data.py
+        run: python src/clean_data.py
         env:
           PYTHONPATH: ${{ github.workspace }}
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+
+      # 8️⃣ Engineer features
       - name: 🧠 Engineer Features
-        run: |
-          python src/process_features.py
+        run: python src/process_features.py
         env:
           PYTHONPATH: ${{ github.workspace }}
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+
+      # 9️⃣ Upload to Hopsworks Feature Store
       - name: 📤 Upload to Hopsworks Feature Store
-        run: |
-          python src/feature_store.py
+        run: python src/feature_store.py
         env:
           PYTHONPATH: ${{ github.workspace }}
+          HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
+
+      # 🔟 Verify upload
       - name: ✅ Verify Upload
         run: |
           python -c "
@@ -60,7 +87,10 @@ jobs:
           load_dotenv()
           api_key = os.getenv('HOPSWORKS_API_KEY')
 
+          # Login to Hopsworks
           project = hopsworks.login(api_key_value=api_key)
+
+          # Get Feature Store
           fs = project.get_feature_store()
           fg = fs.get_feature_group('aqi_features', version=2)
           df = fg.read()
@@ -70,6 +100,8 @@ jobs:
           print(f'   Latest data: {df[\"datetime_str\"].max()}')
           print(f'   Features: {len(df.columns)}')
           "
+
+      # 1️⃣1️⃣ Notify on failure
       - name: 💬 Notify on Failure
         if: failure()
         uses: actions/github-script@v6
@@ -90,6 +122,7 @@ jobs:
               `,
               labels: ['pipeline-failure', 'feature-pipeline', 'urgent']
             })
+
 
 
           
