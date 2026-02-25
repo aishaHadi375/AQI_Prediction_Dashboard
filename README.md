@@ -12,6 +12,8 @@ karachi-aqi-predictor/
 ├── ci_cd_pipeline/            # GitHub Actions workflow YAMLs
 ├── data/                      # Raw, processed, historical & final CSVs
 ├── models/                    # Saved .pkl model files
+    ├── train_model.py         # Train & register ML models in Hopsworks
+│   └── predict_evaluate.py    # Evaluate models + generate 3-day forecast
 ├── notebooks/                 # EDA notebooks (preprocessing + feature analysis)
 ├── src/                       # Core pipeline source code
 │   ├── config.py              # API URLs, coordinates, paths, env flags
@@ -24,8 +26,7 @@ karachi-aqi-predictor/
 │   ├── aqi_utils.py           # EPA AQI calculation utilities
 │   ├── backfill_data.py       # One-time 1-year historical data fetch
 │   ├── run_feature_pipeline.py# Daily orchestrator: fetch → clean → upload
-│   ├── train_model.py         # Train & register ML models in Hopsworks
-│   └── predict_evaluate.py    # Evaluate models + generate 3-day forecast
+│   
 │
 ├── streamlit_app/
 │   ├── app.py                 # Streamlit dashboard (UI)
