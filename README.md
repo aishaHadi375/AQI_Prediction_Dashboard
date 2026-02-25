@@ -156,7 +156,7 @@ The Discord alert system (alert_system.py) sends notifications to a Discord chan
 
 Alerts include a health advisory message, color-coded embed, and emoji severity indicator.
 
-## ⚠️ Important: alert_system.py is a script, not a background service. It runs once and exits — it does not monitor AQI continuously by itself. To make alerts automatic, use one of the methods below.
+**⚠️ Important:** alert_system.py is a script, not a background service. It runs once and exits — it does not monitor AQI continuously by itself. To make alerts automatic, use one of the methods below.
 
 
 **Option 1 — Continuous loop (local):** Add a loop at the bottom of alert_system.py to keep it running:
@@ -208,9 +208,9 @@ streamlit run streamlit_app/app.py
 | Workflow | Schedule | What it does |
 |---|---|---|
 | Feature Pipeline | Daily · 30:20 UTC | Fetch → Clean → Engineer → Upload to Hopsworks |
-| Training Pipeline | Weekly · Sunday 45:20 UTC | Retrain all models, register best in Hopsworks |
+| Training Pipeline | Daily ·  45:20 UTC | Retrain all models, register models in Hopsworks |
 
-**Required GitHub Secrets:** `HOPSWORKS_API_KEY`, `DISCORD_WEBHOOK_URL` (optional)
+**Required GitHub Secrets:** `HOPSWORKS_API_KEY`.
 
 ---
 
